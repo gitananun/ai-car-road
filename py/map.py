@@ -300,7 +300,7 @@ class CarApp(App):
         plt.plot(scores)
         plt.show()
 
-    def load(self, obj):  # load button
+    def load(self):  # load button
         print("loading last saved brain...")
         brain.load()
 

@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.autograd as autograd
 from torch.autograd import Variable
-import resource
 
 
 class Network(nn.Module):
@@ -34,8 +33,6 @@ class ReplayMemory(object):
     '''Architecture of Long Term Memory Replay'''
 
     def __init__(self, capacity):
-        sys.setrecursionlimit(10**6)
-
         self.capacity = capacity  # number of transitions to store in memory
         self.memory = []
 
@@ -48,7 +45,6 @@ class ReplayMemory(object):
 
         self.memory.append(transition)
         if len(self.memory) > self.capacity:
-            print('Memory is full, deleting first transition')
             del self.memory[0]
 
     def sample(self, batch_size):
@@ -73,7 +69,7 @@ class Dqn():
         self.reward_window = []
         self.model = Network(input_size, nb_action)
         # we want to learn looking at last 100.000 transitions
-        self.memory = ReplayMemory(100000)
+        self.memory = ReplayMemory(100)
         # choosing the final action based on learning. Learning Rate slow to learn deeper
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
 
@@ -100,8 +96,9 @@ class Dqn():
         '''
         # if we want to deactive brain of the car we can put T=0
         # T=7: Temperature parameter, small->insect, increasing->car. Higher the temperature, higher probability for winning q value
-        probs = F.softmax(self.model(Variable(state, volatile=True))*0)
-        action = probs.multinomial(3)  # choose action based on probability
+        torch.no_grad()
+        probs = F.softmax(self.model(Variable(state))*7, dim=1)
+        action = probs.multinomial(3)
         return action.data[0, 0]
 
     def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
@@ -131,6 +128,7 @@ class Dqn():
 
         new_state = torch.Tensor(new_signal).float().unsqueeze(0)
 
+        # update memory with new transition
         self.memory.push((self.last_state, new_state, torch.LongTensor(
             [int(self.last_action)]), torch.Tensor([self.last_reward])))
 
